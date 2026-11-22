@@ -1,0 +1,9 @@
+description: "Vibrating things for Swift, stepped a sample at a time: a drumhead's resonances, a felt striker in contact with them, and what they radiate."
+topics:
+  - primitives
+  - acoustics
+  - physical-modelling
+  - audio
+homepage: "https://swift-institute.org"
+readme:
+  family: E
