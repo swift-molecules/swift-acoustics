@@ -272,3 +272,24 @@ extension `Acoustics Tests`.String {
         #expect(cents < 35)
     }
 }
+
+extension `Acoustics Tests`.String {
+    @Test func `A decay set by two ring times makes the lowest partial fall 60 dB in its time`() {
+        let bare = `Acoustics Tests`.string()
+        let time = 0.3
+        var string = `Acoustics Tests`.string(
+            decay: .init(
+                low: (bare.frequency, time),
+                high: (2_000, 0.1),
+                tension: bare.tension,
+                density: bare.density,
+                stiffness: bare.stiffness
+            )
+        )
+        string.displace { along in .init(up: 0.001 * Foundation.sin(Double.pi * along / 1.06), across: 0) }
+        let start = string.energy
+        (0..<Int(time / `Acoustics Tests`.interval)).forEach { _ in string.advance() }
+        let fall = 10 * Foundation.log10(start / string.energy)
+        #expect(abs(fall - 60) < 1)
+    }
+}

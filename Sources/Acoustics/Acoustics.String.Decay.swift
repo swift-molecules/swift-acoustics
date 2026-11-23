@@ -36,7 +36,7 @@ extension Acoustics.String.Decay {
         }
         let near = wavenumber(low.frequency)
         let far = wavenumber(high.frequency)
-        let scale = 6 * Double.math.log(10) / (far - near)
+        let scale = 3 * Double.math.log(10) / (far - near)
         self.init(
             steady: scale * (far / low.time - near / high.time),
             rising: scale * (1 / high.time - 1 / low.time)
