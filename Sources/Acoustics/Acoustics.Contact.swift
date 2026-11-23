@@ -18,6 +18,7 @@ extension Acoustics.Contact {
         guard compression > 0 else { return 0 }
         if exponent == 1 { return stiffness * compression }
         if exponent == 2 { return stiffness * compression * compression }
+        if exponent == 1.5 { return stiffness * compression * compression.squareRoot() }
         return stiffness * Double.math.pow(compression, exponent)
     }
 
@@ -25,6 +26,7 @@ extension Acoustics.Contact {
         guard compression > 0 else { return 0 }
         if exponent == 1 { return stiffness * compression * compression / 2 }
         if exponent == 2 { return stiffness * compression * compression * compression / 3 }
+        if exponent == 1.5 { return stiffness / 2.5 * compression * compression * compression.squareRoot() }
         return stiffness / (exponent + 1) * Double.math.pow(compression, exponent + 1)
     }
 

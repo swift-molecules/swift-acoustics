@@ -8,6 +8,7 @@ extension `Acoustics Tests` {
     @Suite struct Resonator {}
     @Suite struct Striker {}
     @Suite struct Membrane {}
+    @Suite struct Contact {}
 
     fileprivate static func few(decay: Double = 0, stretch: Double = 0) -> [Acoustics.Resonator.Mode] {
         [
@@ -282,5 +283,16 @@ extension `Acoustics Tests`.Membrane {
         let fine = modes.max { $0.zero < $1.zero }!
         #expect(head.patch(of: fine, across: 0.015).magnitude < head.patch(of: coarse, across: 0.015))
         #expect(head.patch(of: coarse, across: 0) == 1)
+    }
+}
+
+extension `Acoustics Tests`.Contact {
+    @Test func `A contact of exponent one and a half gives what the general power gives`() {
+        let fast = Acoustics.Contact(stiffness: 4e5, exponent: 1.5)
+        let plain = Acoustics.Contact(stiffness: 4e5, exponent: 1.5000000000000002)
+        for pressed in [1e-9, 3e-6, 2e-4, 0.0071] {
+            #expect(abs(fast.force(pressed: pressed) / plain.force(pressed: pressed) - 1) < 1e-12)
+            #expect(abs(fast.energy(pressed: pressed) / plain.energy(pressed: pressed) - 1) < 1e-12)
+        }
     }
 }

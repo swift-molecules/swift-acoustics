@@ -141,8 +141,11 @@ extension Acoustics.Resonator {
                 / weight
             if !forces.isEmpty {
                 var pushed = 0.0
-                for port in forces.indices.prefix(ports) {
+                var port = 0
+                let used = Swift.min(ports, forces.count)
+                while port < used {
                     pushed += driven[index * ports + port] * forces[port]
+                    port += 1
                 }
                 next += step * pushed / (mass[index] * weight)
             }
@@ -174,10 +177,16 @@ extension Acoustics.Resonator {
             let quickening = next - 2 * now[index] + before[index]
             let speed = next - before[index]
             let base = index * ears
-            for ear in heard.indices {
+            var ear = 0
+            while ear < ears {
                 heard[ear] += moving[base + ear] * quickening - turning[base + ear] * speed
+                ear += 1
             }
-            for port in felt.indices { felt[port] += driven[index * ports + port] * next }
+            var port = 0
+            while port < ports {
+                felt[port] += driven[index * ports + port] * next
+                port += 1
+            }
             before[index] = now[index]
             now[index] = next
         }
