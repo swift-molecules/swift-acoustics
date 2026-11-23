@@ -253,7 +253,7 @@ extension `Acoustics Tests`.String {
         }
         let heard =
             crossings.count > 1
-            ? Double(crossings.count - 1) / ((crossings[crossings.endIndex - 1] - crossings[0]) * interval) : 0
+            ? Double(crossings.dropLast().count) / ((crossings[crossings.endIndex - 1] - crossings[0]) * interval) : 0
         return (pulled, kept, heard)
     }
 
