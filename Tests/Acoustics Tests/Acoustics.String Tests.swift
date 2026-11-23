@@ -309,7 +309,7 @@ extension `Acoustics Tests`.String {
         let point = Int(0.37 / ringing.spacing)
         var last = ringing.shape[point].up
         var crossings: [Double] = []
-        for step in 1...Int(0.05 / `Acoustics Tests`.interval) {
+        (1...Int(0.05 / `Acoustics Tests`.interval)).forEach { step in
             ringing.advance()
             let now = ringing.shape[point].up
             if last < 0, now >= 0 {
