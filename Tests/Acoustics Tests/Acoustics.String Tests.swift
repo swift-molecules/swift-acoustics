@@ -186,4 +186,89 @@ extension `Acoustics Tests`.String {
         #expect(moved > 1e-6)
         #expect(worst / start < 1e-9)
     }
+
+    /// Plucks with a fingertip drawn across 20 cm from the bridge, a finger stopping the string at `stop` if given.
+    fileprivate static func plucked(stop: Double?, lasting time: Double) -> (pulled: Double, kept: Double, heard: Double) {
+        let interval = `Acoustics Tests`.interval
+        var string = `Acoustics Tests`.string(
+            decay: .init(steady: 0.8, rising: 0.0004),
+            board: `Acoustics Tests`.board(friction: 0.3, damping: 20)
+        )
+        let flesh = Acoustics.Contact(stiffness: 4e5, exponent: 1.5)
+        let pressed = stop.map { -(0.0008 + 0.006 * $0 / 0.86) + 0.007 - 0.0008 } ?? 0
+        var fingers: [Acoustics.String.Finger] = []
+        if let stop {
+            fingers.append(
+                .init(
+                    place: stop,
+                    width: 0.014,
+                    radius: 0.007,
+                    centre: .init(up: 0.008),
+                    contact: flesh,
+                    friction: 0.8,
+                    damping: 40
+                )
+            )
+        }
+        fingers.append(
+            .init(
+                place: 0.86,
+                width: 0.014,
+                radius: 0.007,
+                centre: .init(up: 0.004, across: -0.0085),
+                contact: flesh,
+                friction: 0.8,
+                damping: 10
+            )
+        )
+        string.fingers = fingers
+        let plucking = fingers.endIndex - 1
+        let place = Int(0.86 / string.spacing)
+        var pulled = 0.0
+        var kept = 0.0
+        var trace: [Double] = []
+        (0..<Int(time / interval)).forEach { step in
+            let now = Double(step) * interval
+            if stop != nil {
+                let down = min(now / 0.03, 1)
+                string.fingers[0].centre.up = 0.008 + (pressed - 0.008) * down
+                string.fingers[0].speed.up = down < 1 ? (pressed - 0.008) / 0.03 : 0
+            }
+            if now > 0.04, now < 0.08 {
+                string.fingers[plucking].speed.across = 0.3
+                string.fingers[plucking].centre.across += 0.3 * interval
+            } else if now >= 0.08 {
+                string.fingers[plucking].speed.across = 0
+                string.fingers[plucking].centre.up = 0.05
+            }
+            string.advance()
+            let here = string.shape[place].across
+            if now < 0.08 { pulled = max(pulled, abs(here)) }
+            if now >= 0.08 { kept = max(kept, abs(here)) }
+            if now > 0.12 { trace.append(here) }
+        }
+        var crossings: [Double] = []
+        for index in trace.indices.dropFirst() where trace[index - 1] < 0 && trace[index] >= 0 {
+            crossings.append(Double(index) - trace[index] / (trace[index] - trace[index - 1]))
+        }
+        let heard =
+            crossings.count > 1
+            ? Double(crossings.count - 1) / ((crossings[crossings.endIndex - 1] - crossings[0]) * interval) : 0
+        return (pulled, kept, heard)
+    }
+
+    @Test func `A fingertip drawn across pulls the string along, then the string slips off and rings`() {
+        let pluck = Self.plucked(stop: nil, lasting: 0.3)
+        #expect(pluck.pulled > 0.002)
+        #expect(pluck.pulled < 0.008)
+        #expect(pluck.kept > 0.0005)
+        #expect(abs(1_200 * log2(pluck.heard / 102.02)) < 15)
+    }
+
+    @Test func `A note stopped by a fingertip sounds a little sharp of its bare length, by about half the tip`() {
+        let pluck = Self.plucked(stop: 0.30, lasting: 0.45)
+        let cents = 1_200 * log2(pluck.heard / (102.02 * 1.06 / 0.76))
+        #expect(cents > 0)
+        #expect(cents < 35)
+    }
 }
