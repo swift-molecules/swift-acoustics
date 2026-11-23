@@ -29,7 +29,11 @@ extension Acoustics.Membrane {
             while rising {
                 let zeros = Bessel.First<Double>(order: Cardinal(diameters)).zeros(Cardinal(UInt(known)))
                 while checked < zeros.count, rising {
-                    let mode = Mode(diameters: Cardinal(diameters), circles: Cardinal(UInt(checked + 1)), zero: zeros[checked])
+                    let mode = Mode(
+                        diameters: Cardinal(diameters),
+                        circles: Cardinal(UInt(checked + 1)),
+                        zero: zeros[checked]
+                    )
                     if self.frequency(of: mode, in: air) < frequency {
                         modes.append(mode)
                         found = true
@@ -58,7 +62,8 @@ extension Acoustics.Membrane {
     }
 
     public func shape(of mode: Mode, at distance: Double) -> Double {
-        distance.magnitude > radius ? 0 : Bessel.First<Double>(order: mode.diameters).value(at: mode.zero * distance / radius)
+        distance.magnitude > radius
+            ? 0 : Bessel.First<Double>(order: mode.diameters).value(at: mode.zero * distance / radius)
     }
 
     public func patch(of mode: Mode, across width: Double) -> Double {
@@ -67,8 +72,11 @@ extension Acoustics.Membrane {
     }
 
     func square(of mode: Mode) -> Double {
-        let edge = Bessel.First<Double>(order: Cardinal(UInt(Int(clamping: mode.diameters)) + 1)).value(at: mode.zero)
-        return Double.pi * radius * radius * edge * edge * (Int(clamping: mode.diameters) == 0 ? 1 : 0.5)
+        let edge = Bessel.First<Double>(order: Cardinal(UInt(Int(clamping: mode.diameters)) + 1)).value(
+            at: mode.zero
+        )
+        return Double.pi * radius * radius * edge * edge
+            * (Int(clamping: mode.diameters) == 0 ? 1 : 0.5)
     }
 
     public func mass(of mode: Mode, in air: Acoustics.Air = .room) -> Double {
@@ -80,14 +88,20 @@ extension Acoustics.Membrane {
         return wavenumber * wavenumber * square(of: mode)
     }
 
-    public func beam(of mode: Mode, at frequency: Double, tilted angle: Double, in air: Acoustics.Air = .room) -> Double {
+    public func beam(
+        of mode: Mode,
+        at frequency: Double,
+        tilted angle: Double,
+        in air: Acoustics.Air = .room
+    ) -> Double {
         let across = 2 * Double.pi * frequency / air.speed * Double.math.sin(angle)
         let along = wavenumber(of: mode)
         let order = UInt(Int(clamping: mode.diameters))
         var apart = along * along - across * across
         if apart.magnitude < 1e-9 * along * along { apart = 1e-9 * along * along }
         let edge = Bessel.First<Double>(order: Cardinal(order + 1)).value(at: mode.zero)
-        return air.density * radius * along * edge * Bessel.First<Double>(order: Cardinal(order)).value(at: across * radius) / apart
+        return air.density * radius * along * edge
+            * Bessel.First<Double>(order: Cardinal(order)).value(at: across * radius) / apart
     }
 
     public func radiated(by mode: Mode, at frequency: Double, in air: Acoustics.Air = .room) -> Double {
@@ -103,6 +117,7 @@ extension Acoustics.Membrane {
         }
         let around = Int(clamping: mode.diameters) == 0 ? 2 * Double.pi : Double.pi
         let angular = 2 * Double.pi * frequency
-        return air.density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around / (2 * air.speed * mass(of: mode, in: air))
+        return air.density * angular * angular * sum * (Double.pi / 2 / Double(slices)) * around
+            / (2 * air.speed * mass(of: mode, in: air))
     }
 }

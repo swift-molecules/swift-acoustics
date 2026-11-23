@@ -12,23 +12,43 @@ extension `Acoustics Tests` {
         board: Acoustics.String.Board? = nil
     ) -> Acoustics.String {
         Acoustics.String(
-            length: 1.06, tension: 290, density: 0.0062, stiffness: 0.004, decay: decay, board: board, every: interval)
+            length: 1.06,
+            tension: 290,
+            density: 0.0062,
+            stiffness: 0.004,
+            decay: decay,
+            board: board,
+            every: interval
+        )
     }
 
     fileprivate static func board(friction: Double = 0, damping: Double = 0) -> Acoustics.String.Board {
         Acoustics.String.Board(
-            reach: 0.86, contact: .init(stiffness: 4e9, exponent: 1.5), friction: friction, damping: damping
+            reach: 0.86,
+            contact: .init(stiffness: 4e9, exponent: 1.5),
+            friction: friction,
+            damping: damping
         ) { 0.0008 + 0.006 * $0 / 0.86 }
     }
 
-    fileprivate static func pulled(_ depth: Acoustics.String.Offset, at place: Double) -> (Double) -> Acoustics.String.Offset {
+    fileprivate static func pulled(
+        _ depth: Acoustics.String.Offset,
+        at place: Double
+    ) -> (Double) ->
+        Acoustics.String.Offset
+    {
         { along in
             let share = along < place ? along / place : (1.06 - along) / (1.06 - place)
             return .init(up: depth.up * share, across: depth.across * share)
         }
     }
 
-    fileprivate static func drift(_ string: inout Acoustics.String, steps: Int) -> (least: Double, most: Double, start: Double) {
+    fileprivate static func drift(
+        _ string: inout Acoustics.String,
+        steps: Int
+    ) -> (
+        least: Double, most: Double, start: Double
+    ) {
         let start = string.energy
         var least = start
         var most = start
@@ -43,7 +63,10 @@ extension `Acoustics Tests` {
 }
 
 extension `Acoustics Tests`.String {
-    @Test func `The bare string's partials are the stiff string's own: a tenth of a cent low down, five cents at 2 kHz`() {
+    @Test
+    func
+        `The bare string's partials are the stiff string's own: a tenth of a cent low down, five cents at 2 kHz`()
+    {
         var worst = 0.0
         for partial in [1.0, 2, 3, 5, 8, 13, 21] {
             var string = `Acoustics Tests`.string()
@@ -57,7 +80,9 @@ extension `Acoustics Tests`.String {
             let after = string.shape[middle].up
             let heard = acos((after + before) / (2 * now)) / (2 * Double.pi * `Acoustics Tests`.interval)
             let wavenumber = partial * Double.pi / 1.06
-            let wanted = (290 / 0.0062 * wavenumber * wavenumber + 0.004 / 0.0062 * pow(wavenumber, 4)).squareRoot() / (2 * Double.pi)
+            let wanted =
+                (290 / 0.0062 * wavenumber * wavenumber + 0.004 / 0.0062 * pow(wavenumber, 4)).squareRoot()
+                / (2 * Double.pi)
             worst = max(worst, abs(1_200 * log2(heard / wanted)))
             if partial <= 3 { #expect(abs(1_200 * log2(heard / wanted)) < 0.1) }
         }
@@ -82,7 +107,10 @@ extension `Acoustics Tests`.String {
             string.advance()
             worst = max(worst, abs(string.energy - start))
             if !touched {
-                touched = string.shape.indices.contains { string.shape[$0].up < -(0.0008 + 0.006 * Double($0) * string.spacing / 0.86) && Double($0) * string.spacing <= 0.86 }
+                touched = string.shape.indices.contains {
+                    string.shape[$0].up < -(0.0008 + 0.006 * Double($0) * string.spacing / 0.86)
+                        && Double($0) * string.spacing <= 0.86
+                }
             }
         }
         #expect(touched)
@@ -92,7 +120,13 @@ extension `Acoustics Tests`.String {
     @Test func `Without loss a string held down by a still fingertip keeps its energy`() {
         var string = `Acoustics Tests`.string(board: `Acoustics Tests`.board())
         string.fingers = [
-            .init(place: 0.30, width: 0.014, radius: 0.007, centre: .init(up: 0.0035, across: 0.0005), contact: .init(stiffness: 4e5, exponent: 1.5))
+            .init(
+                place: 0.30,
+                width: 0.014,
+                radius: 0.007,
+                centre: .init(up: 0.0035, across: 0.0005),
+                contact: .init(stiffness: 4e5, exponent: 1.5)
+            )
         ]
         string.displace(`Acoustics Tests`.pulled(.init(up: 0.002, across: 0.006), at: 0.86))
         let energy = `Acoustics Tests`.drift(&string, steps: 30_000)
@@ -102,11 +136,19 @@ extension `Acoustics Tests`.String {
 
     @Test func `With loss, friction and a damping fingertip the energy only falls`() {
         var string = `Acoustics Tests`.string(
-            decay: .init(steady: 0.8, rising: 0.0004), board: `Acoustics Tests`.board(friction: 0.3, damping: 20))
+            decay: .init(steady: 0.8, rising: 0.0004),
+            board: `Acoustics Tests`.board(friction: 0.3, damping: 20)
+        )
         string.fingers = [
             .init(
-                place: 0.30, width: 0.014, radius: 0.007, centre: .init(up: 0.0035, across: 0.0005),
-                contact: .init(stiffness: 4e5, exponent: 1.5), friction: 0.6, damping: 30)
+                place: 0.30,
+                width: 0.014,
+                radius: 0.007,
+                centre: .init(up: 0.0035, across: 0.0005),
+                contact: .init(stiffness: 4e5, exponent: 1.5),
+                friction: 0.6,
+                damping: 30
+            )
         ]
         string.displace(`Acoustics Tests`.pulled(.init(up: 0.002, across: 0.006), at: 0.86))
         var last = string.energy
@@ -127,7 +169,9 @@ extension `Acoustics Tests`.String {
         var body = Acoustics.Resonator(
             [(98.0, 1.0, 0.3), (183.0, -0.8, 0.9), (412.0, 0.5, -0.7), (1_530.0, 0.9, 0.4)].map {
                 .init(frequency: $0.0, decay: 0, mass: 0.4, reach: 0, driven: [$0.1, $0.2])
-            }, every: `Acoustics Tests`.interval)
+            },
+            every: `Acoustics Tests`.interval
+        )
         string.displace(`Acoustics Tests`.pulled(.init(up: 0.004, across: 0.007), at: 0.86))
         let start = string.energy + body.energy
         var worst = 0.0

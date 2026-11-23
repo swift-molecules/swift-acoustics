@@ -12,12 +12,12 @@ extension Acoustics.String {
             self.steady = steady
             self.rising = rising
         }
-
-        public static let none = Self()
     }
 }
 
 extension Acoustics.String.Decay {
+    public static let none = Self()
+
     /// The decay under which two frequencies each fall 60 dB in the times given.
     public init(
         low: (frequency: Double, time: Double),
@@ -31,11 +31,15 @@ extension Acoustics.String.Decay {
         func wavenumber(_ frequency: Double) -> Double {
             let angular = 2 * Double.pi * frequency
             guard bending > 0 else { return angular * angular / speed }
-            return (-speed + (speed * speed + 4 * bending * angular * angular).squareRoot()) / (2 * bending)
+            return (-speed + (speed * speed + 4 * bending * angular * angular).squareRoot())
+                / (2 * bending)
         }
         let near = wavenumber(low.frequency)
         let far = wavenumber(high.frequency)
         let scale = 6 * Double.math.log(10) / (far - near)
-        self.init(steady: scale * (far / low.time - near / high.time), rising: scale * (1 / high.time - 1 / low.time))
+        self.init(
+            steady: scale * (far / low.time - near / high.time),
+            rising: scale * (1 / high.time - 1 / low.time)
+        )
     }
 }

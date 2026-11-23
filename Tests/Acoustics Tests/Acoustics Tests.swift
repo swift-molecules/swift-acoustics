@@ -10,8 +10,17 @@ extension `Acoustics Tests` {
     @Suite struct Membrane {}
 
     fileprivate static func few(decay: Double = 0, stretch: Double = 0) -> [Acoustics.Resonator.Mode] {
-        [(131.0, 0.9, 1.0), (207.0, 1.3, -0.7), (333.0, 0.6, 0.5), (1210.0, 1.1, 0.4), (4070.0, 0.8, -0.3)].map {
-            Acoustics.Resonator.Mode(frequency: $0.0, decay: decay, mass: $0.1 * 0.01, reach: $0.2, stretch: stretch * $0.1)
+        [
+            (131.0, 0.9, 1.0), (207.0, 1.3, -0.7), (333.0, 0.6, 0.5), (1210.0, 1.1, 0.4),
+            (4070.0, 0.8, -0.3),
+        ].map {
+            Acoustics.Resonator.Mode(
+                frequency: $0.0,
+                decay: decay,
+                mass: $0.1 * 0.01,
+                reach: $0.2,
+                stretch: stretch * $0.1
+            )
         }
     }
 }
@@ -19,13 +28,18 @@ extension `Acoustics Tests` {
 extension `Acoustics Tests`.Resonator {
     @Test func `A resonance rings at its own frequency, to the sample`() {
         let interval = 1 / 48_000.0
-        var resonator = Acoustics.Resonator([.init(frequency: 4_321, decay: 0, mass: 1, reach: 1)], every: interval)
+        var resonator = Acoustics.Resonator(
+            [.init(frequency: 4_321, decay: 0, mass: 1, reach: 1)],
+            every: interval
+        )
         resonator.displace(to: [1])
         var worst = 0.0
         var tick = 1
         while tick <= 48_000 {
             resonator.advance()
-            let expected = cos(2 * Double.pi * 4_321 * (Double(tick) + 0.5) * interval) / cos(2 * Double.pi * 4_321 * interval / 2)
+            let expected =
+                cos(2 * Double.pi * 4_321 * (Double(tick) + 0.5) * interval)
+                / cos(2 * Double.pi * 4_321 * interval / 2)
             worst = max(worst, abs(resonator.displacements[0] - expected))
             tick += 1
         }
@@ -34,7 +48,10 @@ extension `Acoustics Tests`.Resonator {
 
     @Test func `A resonance dies at its decay rate`() {
         let interval = 1 / 48_000.0
-        var resonator = Acoustics.Resonator([.init(frequency: 300, decay: 4, mass: 1, reach: 1)], every: interval)
+        var resonator = Acoustics.Resonator(
+            [.init(frequency: 300, decay: 4, mass: 1, reach: 1)],
+            every: interval
+        )
         resonator.displace(to: [1])
         let start = resonator.energy
         (0..<48_000).forEach { _ in resonator.advance() }
@@ -75,7 +92,11 @@ extension `Acoustics Tests`.Resonator {
 
     @Test func `A head that stiffens keeps its energy and rings sharper when it moves far`() {
         func crossings(_ size: Double) -> (count: Int, drift: Double) {
-            var resonator = Acoustics.Resonator(`Acoustics Tests`.few(stretch: 1), stiffening: 4e8, every: 1 / 48_000.0)
+            var resonator = Acoustics.Resonator(
+                `Acoustics Tests`.few(stretch: 1),
+                stiffening: 4e8,
+                every: 1 / 48_000.0
+            )
             resonator.displace(to: [size])
             let start = resonator.energy
             var count = 0
@@ -99,7 +120,13 @@ extension `Acoustics Tests`.Resonator {
 
     @Test func `What is heard is each resonance's quickening times its gain`() {
         let interval = 1 / 48_000.0
-        let mode = Acoustics.Resonator.Mode(frequency: 500, decay: 0, mass: 1, reach: 1, heard: [.init(moving: 3), .init(moving: 0, turning: 2)])
+        let mode = Acoustics.Resonator.Mode(
+            frequency: 500,
+            decay: 0,
+            mass: 1,
+            reach: 1,
+            heard: [.init(moving: 3), .init(moving: 0, turning: 2)]
+        )
         var resonator = Acoustics.Resonator([mode], every: interval)
         resonator.displace(to: [1])
         var worstMoving = 0.0
@@ -111,8 +138,17 @@ extension `Acoustics Tests`.Resonator {
             resonator.advance()
             let time = (Double(tick) - 0.5) * interval
             let warped = 4 * pow(sin(angular * interval / 2), 2) / (interval * interval)
-            worstMoving = max(worstMoving, abs(resonator.heard[0] / 3 + warped * lead * cos(angular * time)))
-            worstTurning = max(worstTurning, abs(resonator.heard[1] / 2 - angular * lead * sin(angular * time) * sin(angular * interval) / interval))
+            worstMoving = max(
+                worstMoving,
+                abs(resonator.heard[0] / 3 + warped * lead * cos(angular * time))
+            )
+            worstTurning = max(
+                worstTurning,
+                abs(
+                    resonator.heard[1] / 2 - angular * lead * sin(angular * time) * sin(angular * interval)
+                        / interval
+                )
+            )
             tick += 1
         }
         #expect(resonator.ears == 2)
@@ -124,7 +160,10 @@ extension `Acoustics Tests`.Resonator {
 extension `Acoustics Tests`.Striker {
     @Test func `On something that does not move a linear striker touches for half its own period`() {
         let interval = 1 / 192_000.0
-        var wall = Acoustics.Resonator([.init(frequency: 50, decay: 0, mass: 1e9, reach: 1)], every: interval)
+        var wall = Acoustics.Resonator(
+            [.init(frequency: 50, decay: 0, mass: 1e9, reach: 1)],
+            every: interval
+        )
         wall.strike(with: Acoustics.Striker(mass: 0.02, stiffness: 8_000, exponent: 1), at: 1)
         var touched = 0
         var peak = 0.0
@@ -141,7 +180,10 @@ extension `Acoustics Tests`.Striker {
     @Test func `A felt that stiffens touches for a shorter time when it strikes harder`() {
         func touch(_ speed: Double) -> Int {
             var resonator = Acoustics.Resonator(`Acoustics Tests`.few(decay: 2), every: 1 / 48_000.0)
-            resonator.strike(with: Acoustics.Striker(mass: 0.012, stiffness: 1.5e9, exponent: 3), at: speed)
+            resonator.strike(
+                with: Acoustics.Striker(mass: 0.012, stiffness: 1.5e9, exponent: 3),
+                at: speed
+            )
             var touched = 0
             var tick = 0
             while resonator.struck, tick < 48_000 {
@@ -163,14 +205,24 @@ extension `Acoustics Tests`.Striker {
 }
 
 extension `Acoustics Tests`.Membrane {
-    fileprivate static let head = Acoustics.Membrane(radius: 0.32, tension: 5_360, density: 0.262, load: 3.95)
+    fileprivate static let head = Acoustics.Membrane(
+        radius: 0.32,
+        tension: 5_360,
+        density: 0.262,
+        load: 3.95
+    )
 
     @Test func `In a vacuum a mode sounds at its zero times the wave speed over the rim`() {
         let bare = Acoustics.Membrane(radius: 0.3, tension: 3_000, density: 0.25)
         let modes = bare.modes(below: 700)
         let first = modes.first { $0.diameters == 0 && $0.circles == 1 }!
         #expect(abs(first.zero - 2.404825557695773) < 1e-12)
-        #expect(abs(bare.frequency(of: first) - 2.404825557695773 * (3_000 / 0.25).squareRoot() / (2 * Double.pi * 0.3)) < 1e-9)
+        #expect(
+            abs(
+                bare.frequency(of: first) - 2.404825557695773 * (3_000 / 0.25).squareRoot()
+                    / (2 * Double.pi * 0.3)
+            ) < 1e-9
+        )
         #expect(modes.allSatisfy { bare.frequency(of: $0) < 700 })
         #expect(modes.count == Set(modes).count && modes.count > 10)
     }
@@ -207,13 +259,18 @@ extension `Acoustics Tests`.Membrane {
         let modes = head.modes(below: 600)
         let calculated: [(UInt, UInt, Double)] = [(1, 1, 0.8), (2, 1, 1.8), (0, 2, 0.2), (1, 2, 0.2)]
         for (diameters, circles, seconds) in calculated {
-            let mode = modes.first { $0.diameters == Cardinal(diameters) && $0.circles == Cardinal(circles) }!
+            let mode = modes.first {
+                $0.diameters == Cardinal(diameters) && $0.circles == Cardinal(circles)
+            }!
             let ring = 6.908 / head.radiated(by: mode, at: head.frequency(of: mode))
             #expect(ring > seconds / 2 && ring < seconds * 2)
         }
     }
 
-    @Test func `Straight above, only modes without diameters are heard, and a patch hears less of fine modes`() {
+    @Test
+    func
+        `Straight above, only modes without diameters are heard, and a patch hears less of fine modes`()
+    {
         let head = `Acoustics Tests`.Membrane.head
         let modes = head.modes(below: 3_000)
         for mode in modes where mode.diameters != 0 {

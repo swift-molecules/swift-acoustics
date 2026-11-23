@@ -8,7 +8,9 @@ extension Acoustics.String {
             self.up = up
             self.across = across
         }
-
-        public static let zero = Self()
     }
+}
+
+extension Acoustics.String.Offset {
+    public static let zero = Self()
 }

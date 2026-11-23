@@ -9,7 +9,15 @@ extension Acoustics.Resonator {
         public var driven: [Double]
         public var heard: [Heard]
 
-        public init(frequency: Double, decay: Double, mass: Double, reach: Double, stretch: Double = 0, driven: [Double] = [], heard: [Heard] = []) {
+        public init(
+            frequency: Double,
+            decay: Double,
+            mass: Double,
+            reach: Double,
+            stretch: Double = 0,
+            driven: [Double] = [],
+            heard: [Heard] = []
+        ) {
             self.frequency = frequency
             self.decay = decay
             self.mass = mass

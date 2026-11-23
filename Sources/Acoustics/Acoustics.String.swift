@@ -45,7 +45,8 @@ extension Acoustics {
             self.interval = interval
             let step = interval * interval
             let wave = tension / density * step + 4 * decay.rising * interval
-            let least = ((wave + (wave * wave + 16 * stiffness / density * step).squareRoot()) / 2).squareRoot()
+            let least = ((wave + (wave * wave + 16 * stiffness / density * step).squareRoot()) / 2)
+                .squareRoot()
             self.count = Swift.max(2, Int(length / least))
             self.spacing = length / Double(count)
             self.up = Line(count + 1)
@@ -60,59 +61,13 @@ extension Acoustics {
 }
 
 extension Acoustics.String {
-    @usableFromInline
-    struct Line: Sendable {
-        @usableFromInline var now: [Double]
-        @usableFromInline var before: [Double]
-        @usableFromInline var ahead: [Double]
-        @usableFromInline var bend: [Double]
-        @usableFromInline var bent: [Double]
-
-        @usableFromInline
-        init(_ points: Int) {
-            now = [Double](repeating: 0, count: points)
-            before = now
-            ahead = now
-            bend = now
-            bent = now
-        }
-
-        /// Where every point would be one step on with nothing touching it.
-        @usableFromInline
-        mutating func coast(wave: Double, stiff: Double, rise: Double, steady: Double) {
-            let last = now.count - 1
-            var index = 1
-            while index < last {
-                bend[index] = now[index + 1] - 2 * now[index] + now[index - 1]
-                index += 1
-            }
-            index = 1
-            while index < last {
-                let curve = bend[index]
-                let sharp = bend[index - 1] - 2 * curve + bend[index + 1]
-                ahead[index] =
-                    (2 * now[index] - (1 - steady) * before[index] + wave * curve - stiff * sharp
-                        + rise * (curve - bent[index])) / (1 + steady)
-                index += 1
-            }
-        }
-
-        @usableFromInline
-        mutating func turn(end: Double) {
-            ahead[ahead.count - 1] = end
-            swap(&before, &now)
-            swap(&now, &ahead)
-            swap(&bent, &bend)
-        }
-    }
-}
-
-extension Acoustics.String {
     /// The lowest frequency of the bare string between rigid ends, in hertz.
     public var frequency: Double {
         let wavenumber = Double.pi / length
-        return (tension / density * wavenumber * wavenumber
-            + stiffness / density * wavenumber * wavenumber * wavenumber * wavenumber).squareRoot() / (2 * Double.pi)
+        return
+            (tension / density * wavenumber * wavenumber
+            + stiffness / density * wavenumber * wavenumber * wavenumber * wavenumber).squareRoot()
+            / (2 * Double.pi)
     }
 
     /// Where the string is, point by point from nut to bridge.
@@ -122,13 +77,15 @@ extension Acoustics.String {
 
     /// The string's force on the bridge.
     public var pull: Offset {
-        Offset(up: Self.pull(up, tension / spacing, stiffness / (spacing * spacing * spacing)),
-               across: Self.pull(across, tension / spacing, stiffness / (spacing * spacing * spacing)))
+        Offset(
+            up: Self.pull(up, tension / spacing, stiffness / (spacing * spacing * spacing)),
+            across: Self.pull(across, tension / spacing, stiffness / (spacing * spacing * spacing))
+        )
     }
 
     @usableFromInline
     static func pull(_ line: Line, _ taut: Double, _ stiff: Double) -> Double {
-        let last = line.now.count - 1
+        let last = line.now.endIndex - 1
         let curve = last >= 2 ? line.now[last] - 2 * line.now[last - 1] + line.now[last - 2] : 0
         return -taut * (line.now[last] - line.now[last - 1]) - stiff * curve
     }
@@ -149,7 +106,8 @@ extension Acoustics.String {
     @usableFromInline
     static func bend(_ line: [Double]) -> [Double] {
         line.indices.map { index in
-            index == 0 || index == line.count - 1 ? 0 : line[index + 1] - 2 * line[index] + line[index - 1]
+            index == 0 || index == line.endIndex - 1
+                ? 0 : line[index + 1] - 2 * line[index] + line[index - 1]
         }
     }
 
@@ -162,9 +120,12 @@ extension Acoustics.String {
             let curve = Self.bend(line.now)
             let curved = Self.bend(line.before)
             for index in line.now.indices.dropFirst() {
-                let speed = index == line.now.count - 1 ? 0 : (line.now[index] - line.before[index]) / interval
+                let speed =
+                    index == line.now.endIndex - 1 ? 0 : (line.now[index] - line.before[index]) / interval
                 total += density * spacing * speed * speed / 2
-                total += taut * (line.now[index] - line.now[index - 1]) * (line.before[index] - line.before[index - 1]) / 2
+                total +=
+                    taut * (line.now[index] - line.now[index - 1])
+                    * (line.before[index] - line.before[index - 1]) / 2
                 total += stiff * curve[index] * curved[index] / 2
             }
         }
@@ -179,13 +140,6 @@ extension Acoustics.String {
 
 extension Acoustics.String {
     @usableFromInline
-    struct Span: Sendable {
-        @usableFromInline var low: Int
-        @usableFromInline var high: Int
-        @usableFromInline var whole: Double
-    }
-
-    @usableFromInline
     func cover(_ finger: Finger, _ index: Int) -> Double {
         let off = (Double(index) * spacing - finger.place) / (finger.width / 2)
         guard off.magnitude < 1 else { return 0 }
@@ -196,7 +150,10 @@ extension Acoustics.String {
     @usableFromInline
     func span(_ finger: Finger) -> Span {
         let low = Swift.max(1, Int(((finger.place - finger.width / 2) / spacing).rounded(.up)))
-        let high = Swift.min(count - 1, Int(((finger.place + finger.width / 2) / spacing).rounded(.down)))
+        let high = Swift.min(
+            top.endIndex - 2,
+            Int(((finger.place + finger.width / 2) / spacing).rounded(.down))
+        )
         var whole = 0.0
         var index = low
         while index <= high {
@@ -204,7 +161,10 @@ extension Acoustics.String {
             index += 1
         }
         guard whole > 0 else {
-            let nearest = Swift.min(count - 1, Swift.max(1, Int((finger.place / spacing).rounded())))
+            let nearest = Swift.min(
+                top.endIndex - 2,
+                Swift.max(1, Int((finger.place / spacing).rounded()))
+            )
             return Span(low: nearest, high: nearest, whole: 0)
         }
         return Span(low: low, high: high, whole: whole)
@@ -218,13 +178,17 @@ extension Acoustics.String {
     @usableFromInline
     func stored(_ index: Int, _ up: Double, _ across: Double, _ spans: [Span]) -> Double {
         var total = 0.0
-        if let board, top[index] > up { total += spacing * board.contact.energy(pressed: top[index] - up) }
+        if let board, top[index] > up {
+            total += spacing * board.contact.energy(pressed: top[index] - up)
+        }
         for which in fingers.indices where index >= spans[which].low && index <= spans[which].high {
             let finger = fingers[which]
             let rise = up - finger.centre.up
             let side = across - finger.centre.across
             let pressed = finger.radius - (rise * rise + side * side).squareRoot()
-            if pressed > 0 { total += part(finger, spans[which], index) * finger.contact.energy(pressed: pressed) }
+            if pressed > 0 {
+                total += part(finger, spans[which], index) * finger.contact.energy(pressed: pressed)
+            }
         }
         return total
     }
@@ -233,14 +197,17 @@ extension Acoustics.String {
     @usableFromInline
     func slope(_ index: Int, _ up: Double, _ across: Double, _ spans: [Span]) -> Offset {
         var total = Offset.zero
-        if let board, top[index] > up { total.up -= spacing * board.contact.force(pressed: top[index] - up) }
+        if let board, top[index] > up {
+            total.up -= spacing * board.contact.force(pressed: top[index] - up)
+        }
         for which in fingers.indices where index >= spans[which].low && index <= spans[which].high {
             let finger = fingers[which]
             let rise = up - finger.centre.up
             let side = across - finger.centre.across
             let away = (rise * rise + side * side).squareRoot()
             guard finger.radius > away, away > 0 else { continue }
-            let push = part(finger, spans[which], index) * finger.contact.force(pressed: finger.radius - away)
+            let push =
+                part(finger, spans[which], index) * finger.contact.force(pressed: finger.radius - away)
             total.up -= push * rise / away
             total.across -= push * side / away
         }
@@ -261,15 +228,20 @@ extension Acoustics.String {
         if board != nil {
             var index = 1
             while index < count {
-                if top[index] > up.ahead[index] || top[index] > up.before[index] { settle(index, slack, spans) }
+                if top[index] > up.ahead[index] || top[index] > up.before[index] {
+                    settle(index, slack, spans)
+                }
                 index += 1
             }
         }
         for which in fingers.indices {
             var index = spans[which].low
             while index <= spans[which].high {
-                let boarded = board != nil && (top[index] > up.ahead[index] || top[index] > up.before[index])
-                let earlier = fingers.indices.prefix(which).contains { index >= spans[$0].low && index <= spans[$0].high }
+                let boarded =
+                    board != nil && (top[index] > up.ahead[index] || top[index] > up.before[index])
+                let earlier = fingers.indices.prefix(which).contains {
+                    index >= spans[$0].low && index <= spans[$0].high
+                }
                 if !boarded, !earlier { settle(index, slack, spans) }
                 index += 1
             }
@@ -284,12 +256,16 @@ extension Acoustics.String {
         let wasUp = up.before[index]
         let wasAcross = across.before[index]
         var nextUp = Acoustics.Contact.settle(
-            from: wasUp, toward: up.ahead[index], slack: slack,
+            from: wasUp,
+            toward: up.ahead[index],
+            slack: slack,
             energy: { stored(index, $0, wasAcross, spans) },
             slope: { slope(index, $0, wasAcross, spans).up }
         )
         var nextAcross = Acoustics.Contact.settle(
-            from: wasAcross, toward: across.ahead[index], slack: slack,
+            from: wasAcross,
+            toward: across.ahead[index],
+            slack: slack,
             energy: { stored(index, nextUp, $0, spans) },
             slope: { slope(index, nextUp, $0, spans).across }
         )
@@ -297,7 +273,13 @@ extension Acoustics.String {
             let push = spacing * board.contact.force(pressed: top[index] - nextUp)
             let drag = slack * push / (2 * interval)
             nextUp = wasUp + (nextUp - wasUp) / (1 + drag * board.damping)
-            nextAcross = wasAcross + Self.rub(nextAcross - wasAcross, slack * push * board.friction, 2 * interval * board.creep)
+            nextAcross =
+                wasAcross
+                + Self.rub(
+                    nextAcross - wasAcross,
+                    slack * push * board.friction,
+                    2 * interval * board.creep
+                )
         }
         for which in fingers.indices where index >= spans[which].low && index <= spans[which].high {
             let finger = fingers[which]
@@ -306,7 +288,8 @@ extension Acoustics.String {
             let side = nextAcross - finger.centre.across
             let away = (rise * rise + side * side).squareRoot()
             guard finger.radius > away, away > 0 else { continue }
-            let push = part(finger, spans[which], index) * finger.contact.force(pressed: finger.radius - away)
+            let push =
+                part(finger, spans[which], index) * finger.contact.force(pressed: finger.radius - away)
             let drag = slack * push / (2 * interval)
             let outUp = rise / away
             let outAcross = side / away
@@ -314,7 +297,10 @@ extension Acoustics.String {
             let movedAcross = nextAcross - wasAcross - 2 * interval * finger.speed.across
             let out = (movedUp * outUp + movedAcross * outAcross) / (1 + drag * finger.damping)
             let along = Self.rub(
-                movedAcross * outUp - movedUp * outAcross, slack * push * finger.friction, 2 * interval * finger.creep)
+                movedAcross * outUp - movedUp * outAcross,
+                slack * push * finger.friction,
+                2 * interval * finger.creep
+            )
             nextUp = wasUp + 2 * interval * finger.speed.up + out * outUp - along * outAcross
             nextAcross = wasAcross + 2 * interval * finger.speed.across + out * outAcross + along * outUp
         }

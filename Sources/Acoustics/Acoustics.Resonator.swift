@@ -115,7 +115,9 @@ extension Acoustics.Resonator {
         if let striker {
             let velocity = (place - placed) / interval
             total += striker.mass * velocity * velocity / 2
-            total += (striker.energy(pressed: place - reached) + striker.energy(pressed: placed - reachedBefore)) / 2
+            total +=
+                (striker.energy(pressed: place - reached) + striker.energy(pressed: placed - reachedBefore))
+                / 2
         }
         return total
     }
@@ -134,10 +136,14 @@ extension Acoustics.Resonator {
         for index in now.indices {
             let extra = tension == 0 ? 0 : tension * stretch[index] / mass[index] * step / 2
             let weight = 1 + loss[index] + extra
-            var next = (2 * now[index] - (1 - loss[index] + extra) * before[index] - warped[index] * now[index]) / weight
+            var next =
+                (2 * now[index] - (1 - loss[index] + extra) * before[index] - warped[index] * now[index])
+                / weight
             if !forces.isEmpty {
                 var pushed = 0.0
-                for port in forces.indices.prefix(ports) { pushed += driven[index * ports + port] * forces[port] }
+                for port in forces.indices.prefix(ports) {
+                    pushed += driven[index * ports + port] * forces[port]
+                }
                 next += step * pushed / (mass[index] * weight)
             }
             ahead[index] = next
@@ -168,14 +174,23 @@ extension Acoustics.Resonator {
             let quickening = next - 2 * now[index] + before[index]
             let speed = next - before[index]
             let base = index * ears
-            for ear in heard.indices { heard[ear] += moving[base + ear] * quickening - turning[base + ear] * speed }
+            for ear in heard.indices {
+                heard[ear] += moving[base + ear] * quickening - turning[base + ear] * speed
+            }
             for port in felt.indices { felt[port] += driven[index * ports + port] * next }
             before[index] = now[index]
             now[index] = next
         }
     }
 
-    static func push(_ striker: Acoustics.Striker, from last: Double, wanted: Double, slack: Double) -> Double {
+    static func push(
+        _ striker: Acoustics.Striker,
+        from last: Double,
+        wanted: Double,
+        slack: Double
+    )
+        -> Double
+    {
         guard last > 0 || last + wanted > 0 else { return 0 }
         func secant(_ change: Double) -> Double {
             change.magnitude < 1e-13
@@ -183,7 +198,9 @@ extension Acoustics.Resonator {
                 : (striker.energy(pressed: last + change) - striker.energy(pressed: last)) / change
         }
         var high = wanted
-        var low = wanted - slack * Swift.max(striker.force(pressed: last), striker.force(pressed: last + wanted))
+        var low =
+            wanted - slack
+            * Swift.max(striker.force(pressed: last), striker.force(pressed: last + wanted))
         var count = 0
         while count < 64 {
             let middle = low + (high - low) / 2

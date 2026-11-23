@@ -43,7 +43,8 @@ extension Acoustics.Contact {
         let stored = energy(last)
         func miss(_ place: Double) -> Double {
             let change = place - last
-            let mean = change.magnitude < 1e-12 ? slope(last + change / 2) : (energy(place) - stored) / change
+            let mean =
+                change.magnitude < 1e-12 ? slope(last + change / 2) : (energy(place) - stored) / change
             return place - free + slack * mean
         }
         let start = miss(free)
@@ -64,7 +65,9 @@ extension Acoustics.Contact {
         var count = 0
         while count < 100 {
             var place = (near * farMiss - far * nearMiss) / (farMiss - nearMiss)
-            if !(place > Swift.min(near, far) && place < Swift.max(near, far)) { place = near + (far - near) / 2 }
+            if !(place > Swift.min(near, far) && place < Swift.max(near, far)) {
+                place = near + (far - near) / 2
+            }
             if place == near || place == far { break }
             let missed = miss(place)
             if missed == 0 { return place }
