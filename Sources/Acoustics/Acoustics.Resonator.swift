@@ -8,6 +8,11 @@ extension Acoustics {
         public private(set) var touching = false
         public private(set) var force = 0.0
         public private(set) var heard: [Double]
+        /// The number of places the modes can be driven.
+        public let ports: Int
+        /// Where each driven place is now.
+        public private(set) var felt: [Double]
+        @usableFromInline var driven: [Double]
         @usableFromInline var count: Int
         @usableFromInline var warped: [Double]
         @usableFromInline var square: [Double]
@@ -32,6 +37,10 @@ extension Acoustics {
             self.count = modes.count
             self.ears = modes.map(\.heard.count).min() ?? 0
             self.heard = [Double](repeating: 0, count: ears)
+            let ports = modes.map(\.driven.count).min() ?? 0
+            self.ports = ports
+            self.felt = [Double](repeating: 0, count: ports)
+            self.driven = modes.flatMap { $0.driven.prefix(ports) }
             self.angular = modes.map { 2 * Double.pi * $0.frequency }
             self.warped = angular.map { angle in
                 let half = Double.math.sin(angle * interval / 2)
@@ -111,7 +120,8 @@ extension Acoustics.Resonator {
         return total
     }
 
-    public mutating func advance() {
+    /// Steps once. `forces` push on the driven places, one each, as they stand now.
+    public mutating func advance(driven forces: [Double] = []) {
         var spread = 0.0
         if stiffening != 0 {
             for index in now.indices { spread += stretch[index] * now[index] * now[index] }
@@ -124,7 +134,12 @@ extension Acoustics.Resonator {
         for index in now.indices {
             let extra = tension == 0 ? 0 : tension * stretch[index] / mass[index] * step / 2
             let weight = 1 + loss[index] + extra
-            let next = (2 * now[index] - (1 - loss[index] + extra) * before[index] - warped[index] * now[index]) / weight
+            var next = (2 * now[index] - (1 - loss[index] + extra) * before[index] - warped[index] * now[index]) / weight
+            if !forces.isEmpty {
+                var pushed = 0.0
+                for port in forces.indices.prefix(ports) { pushed += driven[index * ports + port] * forces[port] }
+                next += step * pushed / (mass[index] * weight)
+            }
             ahead[index] = next
             lean[index] = step * reach[index] / (mass[index] * weight)
             reachedBefore += reach[index] * before[index]
@@ -147,12 +162,14 @@ extension Acoustics.Resonator {
         }
         force = push
         for ear in heard.indices { heard[ear] = 0 }
+        for port in felt.indices { felt[port] = 0 }
         for index in now.indices {
             let next = ahead[index] + lean[index] * push
             let quickening = next - 2 * now[index] + before[index]
             let speed = next - before[index]
             let base = index * ears
             for ear in heard.indices { heard[ear] += moving[base + ear] * quickening - turning[base + ear] * speed }
+            for port in felt.indices { felt[port] += driven[index * ports + port] * next }
             before[index] = now[index]
             now[index] = next
         }
