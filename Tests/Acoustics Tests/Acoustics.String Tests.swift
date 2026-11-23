@@ -293,3 +293,32 @@ extension `Acoustics Tests`.String {
         #expect(abs(fall - 60) < 1)
     }
 }
+
+extension `Acoustics Tests`.String {
+    @Test func `A stiff string's partial near 2.3 kHz sounds within a cent of its law, not five flat`() {
+        let string = `Acoustics Tests`.string()
+        let along = 2_200.0 / string.frequency
+        let mode = along.rounded()
+        let wavenumber = mode * Double.pi / string.length
+        let wanted =
+            (string.tension / string.density * wavenumber * wavenumber
+            + string.stiffness / string.density * wavenumber * wavenumber * wavenumber * wavenumber)
+            .squareRoot() / (2 * Double.pi)
+        var ringing = string
+        ringing.displace { place in .init(up: 0.0001 * Foundation.sin(wavenumber * place), across: 0) }
+        let point = Int(0.37 / ringing.spacing)
+        var last = ringing.shape[point].up
+        var crossings: [Double] = []
+        for step in 1...Int(0.05 / `Acoustics Tests`.interval) {
+            ringing.advance()
+            let now = ringing.shape[point].up
+            if last < 0, now >= 0 {
+                crossings.append((Double(step) - now / (now - last)) * `Acoustics Tests`.interval)
+            }
+            last = now
+        }
+        let periods = Double(crossings.dropFirst().count)
+        let heard = periods / ((crossings.last ?? 0) - (crossings.first ?? 0))
+        #expect(abs(1_200 * Foundation.log2(heard / wanted)) < 1)
+    }
+}

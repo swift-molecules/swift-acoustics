@@ -12,6 +12,9 @@ extension Acoustics {
         public let density: Double
         /// Bending stiffness, in N·m².
         public let stiffness: Double
+        /// The stiffness the grid is stepped with: a little more than `stiffness`, so the grid's own flattening of
+        /// high partials is cancelled and they sound where the stiff string's law puts them.
+        @usableFromInline let stepped: Double
         public let decay: Decay
         public let interval: Double
         /// The distance between neighbouring points.
@@ -45,9 +48,24 @@ extension Acoustics {
             self.interval = interval
             let step = interval * interval
             let wave = tension / density * step + 4 * decay.rising * interval
-            let least = ((wave + (wave * wave + 16 * stiffness / density * step).squareRoot()) / 2)
-                .squareRoot()
-            self.count = Swift.max(2, Int(length / least))
+            func points(_ stiff: Double) -> Int {
+                let least = ((wave + (wave * wave + 16 * stiff / density * step).squareRoot()) / 2).squareRoot()
+                return Swift.max(2, Int(length / least))
+            }
+            // WHY: The grid flattens a partial of wavenumber β by c²β⁴(h² − c²k²)/12 in ω²; a stiff string sharpens it by
+            // κ²β⁴. Stepping with κ² raised by that much cancels the flattening to this order. The spacing is chosen
+            // for the raised stiffness, which is never less than the one stepped with, so the grid stays stable.
+            var sized = stiffness
+            var raised = stiffness
+            for _ in 0..<8 {
+                let spacing = length / Double(points(sized))
+                let speed = tension / density
+                raised = stiffness + density * speed * (spacing * spacing - speed * step) / 12
+                if raised <= sized { break }
+                sized = raised
+            }
+            self.stepped = Swift.min(raised, sized)
+            self.count = points(sized)
             self.spacing = length / Double(count)
             self.up = Line(count + 1)
             self.across = Line(count + 1)
@@ -78,8 +96,8 @@ extension Acoustics.String {
     /// The string's force on the bridge.
     public var pull: Offset {
         Offset(
-            up: Self.pull(up, tension / spacing, stiffness / (spacing * spacing * spacing)),
-            across: Self.pull(across, tension / spacing, stiffness / (spacing * spacing * spacing))
+            up: Self.pull(up, tension / spacing, stepped / (spacing * spacing * spacing)),
+            across: Self.pull(across, tension / spacing, stepped / (spacing * spacing * spacing))
         )
     }
 
@@ -114,7 +132,7 @@ extension Acoustics.String {
     /// The energy in the string and in whatever presses on it, in joules.
     public var energy: Double {
         let taut = tension / spacing
-        let stiff = stiffness / (spacing * spacing * spacing)
+        let stiff = stepped / (spacing * spacing * spacing)
         var total = 0.0
         for line in [up, across] {
             let curve = Self.bend(line.now)
@@ -218,7 +236,7 @@ extension Acoustics.String {
     public mutating func advance(end: Offset = .zero) {
         let step = interval * interval
         let wave = tension * step / (density * spacing * spacing)
-        let stiff = stiffness * step / (density * spacing * spacing * spacing * spacing)
+        let stiff = stepped * step / (density * spacing * spacing * spacing * spacing)
         let rise = 2 * decay.rising * interval / (spacing * spacing)
         let steady = decay.steady * interval
         up.coast(wave: wave, stiff: stiff, rise: rise, steady: steady)
