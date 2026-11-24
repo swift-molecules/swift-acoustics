@@ -4,4 +4,5 @@ Use this package for what every vibrating thing shares: the `Acoustics` namespac
 
 ## Laws
 
-- `Acoustics.Air.room` is air at 20 °C: 1.204 kg/m³ and 343.2 m/s.
+- `Acoustics.Air.room` is air at 20 °C: 1.204 kg/m³ and 343.2 m/s, with the viscosity the string-loss literature uses, 1.8 × 10⁻⁵ Pa·s.
+- The air's density, speed of sound and viscosity are quantities of their kinds: a `Density`, a `Velocity` and a `Viscosity`.
